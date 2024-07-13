@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streamer</title>
+  <link rel="icon" type="image/x-icon" href="/logo.webp">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-zinc-800 text-white w-full min-h-screen flex items-center justify-center">
+  <div class="flex flex-col container m-auto bg-zinc-900 p-6 rounded-lg border border-zinc-700">
+    <h1 class="text-center text-4xl font-extrabold">STREAMING</h1>
+    <div id="stream-container" class="mt-9">
+	  <p class="text-gray-300">Channel ID</p>
+      <div class="flex gap-4 items-center mt-2">
+        <input type="text" id="channel-id" placeholder="Enter channel ID" class="border border-zinc-700 p-2 rounded bg-zinc-800" required>
+		<button id="start-stream" class="py-2 px-4 rounded bg-indigo-800">Start Streaming</button>
+	  </div>
+      <video id="video" class="w-full min-h-[350px] bg-zinc-800 rounded-lg border border-zinc-700 mt-6" autoplay></video>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    const video = document.getElementById('video');
+    const startStreamButton = document.getElementById('start-stream');
+    const channelIdInput = document.getElementById('channel-id');
+
+    startStreamButton.addEventListener('click', async () => {
+      const channelId = channelIdInput.value.trim();
+      if (!channelId) {
+        alert('Please enter a Channel ID');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        video.srcObject = stream;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const sendFrame = () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataURL = canvas.toDataURL('image/webp');
+          socket.emit('screen-data', { channelId, data: dataURL });
+          requestAnimationFrame(sendFrame);
+        };
+
+        socket.emit('join-channel', channelId);
+        sendFrame();
+      } catch (error) {
+        console.error('Error accessing media devices:', error);
+        alert('Unable to access media devices. Please check your permissions and device availability.');
+      }
+    });
+  </script>
+</body>
+</html>

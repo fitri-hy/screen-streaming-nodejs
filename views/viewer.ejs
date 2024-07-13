@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viewer</title>
+  <link rel="icon" type="image/x-icon" href="/logo.webp">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-800 text-white w-full min-h-screen flex items-center justify-center py-6 px-4 md:py-9">
+  <div class="flex flex-col container m-auto bg-zinc-900 p-6 rounded-lg border border-zinc-700">
+    <h1 class="text-center text-4xl font-extrabold">VIEWER</h1>
+    <form id="channel-form" class="mt-9">
+	  <p class="text-gray-300">Channel ID</p>
+      <div class="flex gap-4 items-center mt-2">
+        <input type="text" id="channel-id" name="channel-id" placeholder="Enter channel ID" class="border border-zinc-700 p-2 rounded bg-zinc-800" required>
+        <button type="submit" class="py-2 px-4 rounded bg-indigo-800">Start Viewing</button>
+      </div>
+    </form>
+    <video id="video" class="w-full min-h-[350px] bg-zinc-800 rounded-lg border border-zinc-700 mt-6" autoplay></video>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const form = document.getElementById('channel-form');
+    const channelInput = document.getElementById('channel-id');
+
+    let socket;
+    let queue = [];
+    let isUpdating = false;
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const channelId = channelInput.value.trim();
+      if (channelId) {
+        startStreaming(channelId);
+      }
+    });
+
+    function startStreaming(channelId) {
+      if (socket) {
+        socket.disconnect();
+      }
+      socket = io();
+      socket.emit('join-channel', channelId);
+
+      socket.on('screen-data', ({ channelId, data }) => {
+        queue.push(data);
+
+        if (!isUpdating) {
+          requestAnimationFrame(updateVideo);
+        }
+      });
+    }
+
+    function updateVideo() {
+      if (queue.length === 0) {
+        isUpdating = false;
+        return;
+      }
+
+      isUpdating = true;
+
+      const data = queue.shift();
+      const img = new Image();
+      img.src = data;
+
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const stream = canvas.captureStream();
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        video.srcObject = stream;
+
+        requestAnimationFrame(updateVideo);
+      };
+
+      img.onerror = () => {
+        console.error('Failed to load image');
+        isUpdating = false;
+        requestAnimationFrame(updateVideo);
+      };
+    }
+  </script>
+</body>
+</html>
