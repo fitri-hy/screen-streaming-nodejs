@@ -15,5 +15,5 @@ npm start
 
 ## Endpoint URL
 
-- Streamer: `http://localhost:300/streamer`
-- Viewer: `http://localhost:300/`
+- Streamer: `http://localhost:3000/streamer`
+- Viewer: `http://localhost:3000/`
